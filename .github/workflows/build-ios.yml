@@ -96,7 +96,6 @@ jobs:
             find "$HOME/.m2" -name "MetalANGLEKit*" -maxdepth 10 2>/dev/null | head -5
           fi
 
-          printf '\n// CI workaround: MetalANGLEKit framework path\nafterEvaluate {\n    def d = file("libs")\n    if (d.exists() && project.extensions.findByName("robovm")) {\n        project.robovm.config.frameworkPaths.add(d)\n    }\n}\n' >> ios/build.gradle
 
       - name: Build IPA
         run: |

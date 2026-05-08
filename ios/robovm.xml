@@ -37,6 +37,9 @@
         <lib>z</lib>
         <lib>libs/libarc-freetype.a</lib>
     </libs>
+    <frameworkPaths>
+        <path>libs</path>
+    </frameworkPaths>
     <frameworks>
         <framework>arc</framework>
         <framework>UIKit</framework>
