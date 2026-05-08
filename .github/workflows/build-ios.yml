@@ -1,0 +1,154 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Mindustry version tag (e.g. v157.4)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  # Stage 1: Check commit message & extract version
+  check-commit:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit message
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "Manual trigger — building"
+          else
+            COMMIT_MSG="${{ github.event.head_commit.message }}"
+            if echo "$COMMIT_MSG" | grep -qiE "(build action|build release)"; then
+              echo "should_build=true" >> $GITHUB_OUTPUT
+              echo "Commit message contains build trigger"
+            else
+              echo "should_build=false" >> $GITHUB_OUTPUT
+              echo "Commit message does not contain build trigger, skipping"
+            fi
+          fi
+
+      - name: Extract version
+        id: version
+        if: steps.check.outputs.should_build == 'true'
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.version }}" ]]; then
+            VER="${{ inputs.version }}"
+          else
+            COMMIT_MSG="${{ github.event.head_commit.message }}"
+            # Try to extract --version vX.X.X from commit message
+            VER=$(echo "$COMMIT_MSG" | grep -oP '(?<=--version\s)v?\S+' | head -1 || true)
+            if [[ -z "$VER" ]]; then
+              # Fallback: get the latest tag
+              VER=$(git describe --tags --abbrev=0 2>/dev/null || echo "v157.4")
+              echo "No --version in commit, using latest tag: $VER"
+            fi
+          fi
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "Using version: $VER"
+
+  # Stage 2: Build iOS IPA
+  build:
+    needs: check-commit
+    if: needs.check-commit.outputs.should_build == 'true'
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Mindustry
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-commit.outputs.version }}
+          fetch-depth: 1
+
+      - name: Clone Arc engine
+        run: |
+          git clone --depth=1 --branch=master https://github.com/Anuken/Arc.git ../Arc
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/gradle-wrapper.properties') }}
+
+      - name: Prepare native libraries
+        run: |
+          mkdir -p ios/libs
+          cp ../Arc/natives/natives-freetype-ios/libs/libarc-freetype.a ios/libs/
+          mkdir -p ../Arc/natives/natives-ios/libs
+
+      - name: Build IPA
+        run: |
+          VER="${{ needs.check-commit.outputs.version }}"
+          VER="${VER#v}"
+          ./gradlew ios:incrementConfig ios:deploy \
+            -Pbuildversion=$VER \
+            -Probovm.iosSkipSigning=true \
+            --no-daemon
+
+      - name: Upload IPA as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mindustry-iOS-${{ needs.check-commit.outputs.version }}
+          path: ios/build/robovm/*.ipa
+          compression-level: 0
+
+  # Stage 3: Create GitHub Release
+  publish:
+    needs: [check-commit, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: Mindustry-iOS-${{ needs.check-commit.outputs.version }}
+          path: release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-commit.outputs.version }}
+          name: Mindustry iOS ${{ needs.check-commit.outputs.version }}
+          body: |
+            ## Mindustry iOS Build
+
+            **Version:** `${{ needs.check-commit.outputs.version }}`
+
+            ### Downloads
+
+            | Platform | File |
+            |----------|------|
+            | iOS IPA | `Mindustry-iOS-${{ needs.check-commit.outputs.version }}.ipa` |
+
+            ### Build Info
+            - Triggered by: ${{ github.event_name == 'workflow_dispatch' && 'Manual dispatch' || github.event.head_commit.message }}
+            - Commit: `${{ github.sha }}`
+
+            ### ⚠️ Note
+            This IPA is unsigned. Use AltStore, Sideloadly, or similar tools to sideload.
+          files: release/*.ipa
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
