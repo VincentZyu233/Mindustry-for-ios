@@ -89,14 +89,12 @@ jobs:
           cp ../Arc/natives/natives-freetype-ios/libs/libarc-freetype.a ios/libs/
           mkdir -p ../Arc/natives/natives-ios/libs
 
-          FW_SRC="$HOME/.m2/repository/com/mobidevelop/robovm/robovm-dist/2.3.24/unpacked/robovm-2.3.24/lib/vm/ios/arm64/MetalANGLEKit.framework"
-          if [ -d "$FW_SRC" ]; then
-            cp -R "$FW_SRC" ios/libs/
-          else
-            echo "MetalANGLEKit.framework not found in RoboVM distribution"
-            find "$HOME/.m2" -maxdepth 10 -name "MetalANGLEKit*" 2>/dev/null | head -20
-            exit 1
-          fi
+          curl -L \
+            -o /tmp/MetalANGLEKit.zip \
+            https://github.com/libgdx/MetalANGLEKit/releases/download/v1.2.1/metalanglekit.zip
+          echo "c7785cbe15eb9e5962677513725c8f0e33039f344235cc7691ee5ac35ff5ea91  /tmp/MetalANGLEKit.zip" | shasum -a 256 -c
+          unzip -q /tmp/MetalANGLEKit.zip -d ios/libs
+          find ios/libs -maxdepth 2 \( -name "*.framework" -o -name "*.xcframework" \) | sort
 
       - name: Build IPA
         run: |
