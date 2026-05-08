@@ -23,10 +23,11 @@ jobs:
       should_build: ${{ steps.check.outputs.should_build }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout code (fetch all tags from upstream)
+        run: |
+          git init
+          git remote add origin https://github.com/Anuken/Mindustry.git
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
 
       - name: Check commit message
         id: check
@@ -53,10 +54,8 @@ jobs:
             VER="${{ inputs.version }}"
           else
             COMMIT_MSG="${{ github.event.head_commit.message }}"
-            # Try to extract --version vX.X.X from commit message
             VER=$(echo "$COMMIT_MSG" | grep -oP '(?<=--version\s)v?\S+' | head -1 || true)
             if [[ -z "$VER" ]]; then
-              # Fallback: get the latest tag
               VER=$(git describe --tags --abbrev=0 2>/dev/null || echo "v157.4")
               echo "No --version in commit, using latest tag: $VER"
             fi
@@ -70,11 +69,13 @@ jobs:
     if: needs.check-commit.outputs.should_build == 'true'
     runs-on: macos-latest
     steps:
-      - name: Checkout Mindustry
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.check-commit.outputs.version }}
-          fetch-depth: 1
+      - name: Checkout Mindustry (from upstream tag)
+        run: |
+          git init
+          git remote add origin https://github.com/Anuken/Mindustry.git
+          git fetch --depth=1 origin tag ${{ needs.check-commit.outputs.version }}
+          git checkout FETCH_HEAD
+          echo "Checked out: $(git describe --tags)"
 
       - name: Clone Arc engine
         run: |
