@@ -70,6 +70,8 @@ jobs:
           git clone https://github.com/Anuken/Arc.git ../Arc
           cd ../Arc
           git checkout "$ARC_HASH"
+          git lfs install
+          git lfs pull
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -87,13 +89,21 @@ jobs:
         run: |
           mkdir -p ios/libs
           cp ../Arc/natives/natives-freetype-ios/libs/libarc-freetype.a ios/libs/
-          mkdir -p ../Arc/natives/natives-ios/libs
+
+          echo "Arc iOS libs:"
+          find ../Arc/natives/natives-ios/libs -maxdepth 3 -print || true
+
+          if [ ! -d ../Arc/natives/natives-ios/libs/arc.framework ]; then
+            echo "arc.framework not found in ../Arc/natives/natives-ios/libs"
+            exit 1
+          fi
 
           curl -L \
             -o /tmp/MetalANGLEKit.zip \
             https://github.com/libgdx/MetalANGLEKit/releases/download/v1.2.1/metalanglekit.zip
           echo "c7785cbe15eb9e5962677513725c8f0e33039f344235cc7691ee5ac35ff5ea91  /tmp/MetalANGLEKit.zip" | shasum -a 256 -c
           unzip -q /tmp/MetalANGLEKit.zip -d ios/libs
+          cp -R ../Arc/natives/natives-ios/libs/arc.framework ios/libs/
           find ios/libs -maxdepth 2 \( -name "*.framework" -o -name "*.xcframework" \) | sort
 
       - name: Build IPA
