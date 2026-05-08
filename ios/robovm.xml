@@ -41,7 +41,6 @@
         <path>libs</path>
     </frameworkPaths>
     <frameworks>
-        <framework>arc</framework>
         <framework>UIKit</framework>
         <framework>MetalANGLEKit</framework>
 
