@@ -39,6 +39,7 @@
     </libs>
     <frameworkPaths>
         <path>libs</path>
+        <path>${user.home}/.m2/repository/com/mobidevelop/robovm/robovm-dist/2.3.24/unpacked/robovm-2.3.24/lib/vm/ios/arm64</path>
     </frameworkPaths>
     <frameworks>
         <framework>arc</framework>

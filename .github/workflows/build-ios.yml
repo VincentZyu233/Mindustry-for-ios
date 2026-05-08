@@ -83,19 +83,11 @@ jobs:
           path: ~/.gradle/caches
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/gradle-wrapper.properties') }}
 
-      - name: Prepare native libraries and fix framework paths
+      - name: Prepare native libraries
         run: |
           mkdir -p ios/libs
           cp ../Arc/natives/natives-freetype-ios/libs/libarc-freetype.a ios/libs/
           mkdir -p ../Arc/natives/natives-ios/libs
-
-          FW_SRC="$HOME/.m2/repository/com/mobidevelop/robovm/robovm-dist/2.3.24/unpacked/robovm-2.3.24/lib/vm/ios/arm64/MetalANGLEKit.framework"
-          if [ -d "$FW_SRC" ]; then
-            cp -R "$FW_SRC" ios/libs/
-          else
-            find "$HOME/.m2" -name "MetalANGLEKit*" -maxdepth 10 2>/dev/null | head -5
-          fi
-
 
       - name: Build IPA
         run: |
