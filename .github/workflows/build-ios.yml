@@ -67,9 +67,10 @@ jobs:
       - name: Clone Arc engine
         run: |
           ARC_HASH=$(grep '^archash=' gradle.properties | cut -d= -f2)
-          git clone https://github.com/Anuken/Arc.git ../Arc
+          git clone --recursive https://github.com/Anuken/Arc.git ../Arc
           cd ../Arc
           git checkout "$ARC_HASH"
+          git submodule update --init --recursive
           git lfs install
           git lfs pull
 
