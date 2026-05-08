@@ -16,32 +16,24 @@ permissions:
   contents: write
 
 jobs:
-  # Stage 1: Check commit message & extract version
+  # Stage 1: Check commit message & extract version (no checkout needed)
   check-commit:
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout code (with tags)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Check commit message
         id: check
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "Manual trigger — building"
           else
             COMMIT_MSG="${{ github.event.head_commit.message }}"
             if echo "$COMMIT_MSG" | grep -qiE "(build action|build release)"; then
               echo "should_build=true" >> $GITHUB_OUTPUT
-              echo "Commit message contains build trigger"
             else
               echo "should_build=false" >> $GITHUB_OUTPUT
-              echo "Commit message does not contain build trigger, skipping"
             fi
           fi
 
@@ -55,26 +47,25 @@ jobs:
             COMMIT_MSG="${{ github.event.head_commit.message }}"
             VER=$(echo "$COMMIT_MSG" | grep -oP '(?<=--version\s)v?\S+' | head -1 || true)
             if [[ -z "$VER" ]]; then
-              VER=$(git describe --tags --abbrev=0 2>/dev/null || echo "v157.4")
-              echo "No --version in commit, using latest tag: $VER"
+              # Get latest tag from upstream via API (no clone needed)
+              VER=$(curl -sL "https://api.github.com/repos/Anuken/Mindustry/tags?per_page=1" \
+                | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['name'])" 2>/dev/null || echo "v157.4")
             fi
           fi
           echo "version=$VER" >> $GITHUB_OUTPUT
-          echo "Using version: $VER"
 
-  # Stage 2: Build iOS IPA
+  # Stage 2: Build iOS IPA (shallow clone, tag only)
   build:
     needs: check-commit
     if: needs.check-commit.outputs.should_build == 'true'
     runs-on: macos-latest
     steps:
-      - name: Checkout Mindustry
-        uses: actions/checkout@v4
-
-      - name: Fetch and checkout target tag
+      - name: Checkout source (shallow, tag only)
         run: |
-          git fetch origin tag ${{ needs.check-commit.outputs.version }}
-          git checkout ${{ needs.check-commit.outputs.version }}
+          git init
+          git remote add origin https://github.com/VincentZyu233/Mindustry-for-ios.git
+          git fetch --depth=1 origin tag ${{ needs.check-commit.outputs.version }}
+          git checkout FETCH_HEAD
 
       - name: Clone Arc engine
         run: |
@@ -119,6 +110,11 @@ jobs:
     needs: [check-commit, build]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Download IPA
         uses: actions/download-artifact@v4
         with:
@@ -140,10 +136,6 @@ jobs:
             | Platform | File |
             |----------|------|
             | iOS IPA | `Mindustry-iOS-${{ needs.check-commit.outputs.version }}.ipa` |
-
-            ### Build Info
-            - Triggered by: ${{ github.event_name == 'workflow_dispatch' && 'Manual dispatch' || github.event.head_commit.message }}
-            - Commit: `${{ github.sha }}`
 
             ### ⚠️ Note
             This IPA is unsigned. Use AltStore, Sideloadly, or similar tools to sideload.
