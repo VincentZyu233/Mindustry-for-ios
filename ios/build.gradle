@@ -92,3 +92,12 @@ robovm{
     iosProvisioningProfile = project.properties["provisioningProfile"]
     iosSkipSigning = false
 }
+
+afterEvaluate{
+    def frameworkDir = file("libs")
+    if(frameworkDir.exists()){
+        tasks.withType(org.robovm.gradle.tasks.AbstractRoboVMBuildTask).configureEach{ task ->
+            task.robovmConfig.frameworkPaths.add(frameworkDir)
+        }
+    }
+}
