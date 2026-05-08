@@ -93,7 +93,8 @@ jobs:
         run: |
           VER="${{ needs.check-commit.outputs.version }}"
           VER="${VER#v}"
-          ./gradlew ios:incrementConfig ios:deploy \
+          # noLocalArc: use JitPack deps so backend-robovm includes MetalANGLEKit.framework
+          ./gradlew -PnoLocalArc ios:incrementConfig ios:deploy \
             -Pbuildversion=$VER \
             -Probovm.iosSkipSigning=true \
             --no-daemon
