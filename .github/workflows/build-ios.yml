@@ -23,15 +23,10 @@ jobs:
       should_build: ${{ steps.check.outputs.should_build }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout code (fetch fork + upstream tags)
+      - name: Checkout code (with tags)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Fetch upstream tags for version detection
-        run: |
-          git remote add upstream https://github.com/Anuken/Mindustry.git
-          git fetch --depth=1 upstream +refs/tags/*:refs/tags/*
 
       - name: Check commit message
         id: check
@@ -73,13 +68,13 @@ jobs:
     if: needs.check-commit.outputs.should_build == 'true'
     runs-on: macos-latest
     steps:
-      - name: Checkout Mindustry (from upstream tag)
+      - name: Checkout Mindustry
+        uses: actions/checkout@v4
+
+      - name: Fetch and checkout target tag
         run: |
-          git init
-          git remote add origin https://github.com/Anuken/Mindustry.git
-          git fetch --depth=1 origin tag ${{ needs.check-commit.outputs.version }}
-          git checkout FETCH_HEAD
-          echo "Checked out: $(git describe --tags)"
+          git fetch origin tag ${{ needs.check-commit.outputs.version }}
+          git checkout ${{ needs.check-commit.outputs.version }}
 
       - name: Clone Arc engine
         run: |
