@@ -23,11 +23,15 @@ jobs:
       should_build: ${{ steps.check.outputs.should_build }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout code (fetch all tags from upstream)
+      - name: Checkout code (fetch fork + upstream tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream tags for version detection
         run: |
-          git init
-          git remote add origin https://github.com/Anuken/Mindustry.git
-          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+          git remote add upstream https://github.com/Anuken/Mindustry.git
+          git fetch --depth=1 upstream +refs/tags/*:refs/tags/*
 
       - name: Check commit message
         id: check
