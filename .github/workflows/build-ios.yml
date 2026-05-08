@@ -66,7 +66,10 @@ jobs:
 
       - name: Clone Arc engine
         run: |
-          git clone --depth=1 --branch=master https://github.com/Anuken/Arc.git ../Arc
+          ARC_HASH=$(grep '^archash=' gradle.properties | cut -d= -f2)
+          git clone https://github.com/Anuken/Arc.git ../Arc
+          cd ../Arc
+          git checkout "$ARC_HASH"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -97,7 +100,7 @@ jobs:
         run: |
           VER="${{ needs.check-commit.outputs.version }}"
           VER="${VER#v}"
-          ./gradlew -PnoLocalArc ios:incrementConfig ios:deploy \
+          ./gradlew ios:incrementConfig ios:deploy \
             -Pbuildversion=$VER \
             -Probovm.iosSkipSigning=true \
             --no-daemon
