@@ -88,16 +88,11 @@ robovm{
     if(project.hasProperty("signIdentity")) println "iOS Sign Identity: " + project.property("signIdentity")
     if(project.hasProperty("provisioningProfile")) println "iOS Provisioning Profile: " + project.property("provisioningProfile")
 
+    if(delegate.metaClass.hasProperty(delegate, "frameworkPaths")){
+        frameworkPaths += [file("libs")]
+    }
+
     iosSignIdentity = project.properties["signIdentity"]
     iosProvisioningProfile = project.properties["provisioningProfile"]
     iosSkipSigning = false
-}
-
-afterEvaluate{
-    def frameworkDir = file("libs")
-    if(frameworkDir.exists()){
-        tasks.withType(org.robovm.gradle.tasks.AbstractRoboVMBuildTask).configureEach{ task ->
-            task.robovmConfig.frameworkPaths.add(frameworkDir)
-        }
-    }
 }
